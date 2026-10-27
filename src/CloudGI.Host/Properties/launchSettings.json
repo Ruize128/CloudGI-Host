@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "CloudGI Host": {
+      "commandName": "Project"
+    }
+  }
+}

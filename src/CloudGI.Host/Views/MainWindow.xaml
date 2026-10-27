@@ -1,0 +1,66 @@
+<Window
+    x:Class="CloudGI.Host.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="CloudGI Host">
+  <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  HorizontalScrollMode="Disabled">
+      <StackPanel Margin="32" Spacing="24" MaxWidth="660"
+                  HorizontalAlignment="Stretch">
+        <StackPanel Spacing="10">
+          <TextBlock Text="CLOUDGI / HOST"
+                     Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                     FontWeight="SemiBold" />
+          <TextBlock Text="CloudGI Host" Style="{StaticResource TitleTextBlockStyle}" />
+          <TextBlock Text="你好，CloudGI。" Style="{StaticResource SubtitleTextBlockStyle}" />
+          <TextBlock Text="在你的游戏电脑上，开启 CloudGI。"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="24">
+          <StackPanel Spacing="16">
+            <TextBlock Text="基本信息" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <Grid RowSpacing="14" ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <TextBlock Grid.Row="0" Text="版本"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.Version}" />
+              <TextBlock Grid.Row="1" Text="当前环境"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.Platform}"
+                         TextWrapping="Wrap" />
+              <TextBlock Grid.Row="2" Text="运行时"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.Runtime}" />
+              <TextBlock Grid.Row="3" Text="界面框架"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="WinUI 3" />
+              <TextBlock Grid.Row="4" Text="目标平台"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="Windows 11 游戏电脑" />
+              <TextBlock Grid.Row="5" Text="当前阶段"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Text="起始页面" />
+            </Grid>
+          </StackPanel>
+        </Border>
+        <TextBlock Text="Hello, world!"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>
