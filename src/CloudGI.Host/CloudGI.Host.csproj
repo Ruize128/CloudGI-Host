@@ -23,4 +23,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.6.4" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9169" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CloudGI.Host.Core/CloudGI.Host.Core.csproj" />
+  </ItemGroup>
 </Project>

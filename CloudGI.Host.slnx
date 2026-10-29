@@ -3,6 +3,12 @@
     <Platform Name="x64" />
     <Platform Name="ARM64" />
   </Configurations>
+  <Project Path="src/CloudGI.Host.Core/CloudGI.Host.Core.csproj">
+    <Platform Project="AnyCPU" />
+  </Project>
+  <Project Path="tests/CloudGI.Host.Core.Tests/CloudGI.Host.Core.Tests.csproj">
+    <Platform Project="AnyCPU" />
+  </Project>
   <Project Path="src/CloudGI.Host/CloudGI.Host.csproj">
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />

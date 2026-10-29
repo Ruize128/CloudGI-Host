@@ -1,0 +1,46 @@
+<Page
+    x:Class="CloudGI.Host.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="28" MaxWidth="760" Spacing="24">
+      <TextBlock Text="设置" Style="{StaticResource TitleTextBlockStyle}" />
+      <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="1" CornerRadius="8" Padding="24">
+        <StackPanel Spacing="16">
+          <TextBlock Text="游戏启动" Style="{StaticResource SubtitleTextBlockStyle}" />
+          <TextBox Header="游戏目录或可执行文件"
+                   Text="{x:Bind ViewModel.GamePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   AutomationProperties.AutomationId="GamePathTextBox"
+                   IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}"
+                   PlaceholderText="选择 YuanShen.exe / GenshinImpact.exe，或粘贴游戏目录" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="选择文件" Click="BrowseFile_Click" IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
+            <Button Content="选择目录" Click="BrowseFolder_Click" IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
+          </StackPanel>
+          <TextBox Header="自定义启动参数（可留空）"
+                   Text="{x:Bind ViewModel.LaunchArguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   AutomationProperties.AutomationId="LaunchArgumentsTextBox"
+                   IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}"
+                   TextWrapping="Wrap" MinHeight="72" MaxLength="8192"
+                   PlaceholderText="例如：-screen-width 1280 -screen-height 720 -screen-fullscreen 0" />
+          <TextBlock Text="留空时使用游戏默认设置。只填写参数，不包含程序路径；参数是否生效取决于游戏版本。"
+                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="修改后请先保存。若游戏已在运行，新参数将在下次启动时生效。"
+                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="保存设置" Click="Save_Click"
+                    AutomationProperties.AutomationId="SaveSettingsButton"
+                    IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}"
+                    Style="{StaticResource AccentButtonStyle}" />
+            <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" Width="24" Height="24" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      <InfoBar IsOpen="{x:Bind ViewModel.IsStatusOpen, Mode=OneWay}" IsClosable="False"
+               Severity="{x:Bind ViewModel.StatusSeverity, Mode=OneWay}"
+               Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+    </StackPanel>
+  </ScrollViewer>
+</Page>
