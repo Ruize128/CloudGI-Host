@@ -6,9 +6,8 @@ public enum GameLaunchStatus { Started, AlreadyRunning }
 public sealed record GameLaunchResult(GameLaunchStatus Status, int ProcessId);
 public sealed record GameStartRequest(string ExecutablePath, string Arguments, string WorkingDirectory);
 
-public interface IGameProcessLauncher
+public interface IGameProcessLauncher : IGameProcessReader
 {
-    int? FindRunningGame(string executablePath);
     int Start(GameStartRequest request);
 }
 
@@ -21,21 +20,42 @@ public interface IGameLaunchService
 public sealed class GameLaunchService(
     IGameSettingsStore settingsStore,
     GameLaunchValidator validator,
-    IGameProcessLauncher processLauncher) : IGameLaunchService
+    IGameProcessLauncher processLauncher) : IGameLaunchService, IGameStatusService
 {
+    private int _isLaunching;
     private readonly SemaphoreSlim _launchGate = new(1, 1);
+
+    public Task<GameRuntimeSnapshot> GetStatusAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                // No dependency on saved settings: also discover games started outside Host.
+                if (processLauncher.FindRunningGame() is int processId)
+                    return new GameRuntimeSnapshot(GameRuntimeState.Running, processId);
+                return new GameRuntimeSnapshot(Volatile.Read(ref _isLaunching) != 0
+                    ? GameRuntimeState.Starting : GameRuntimeState.NotRunning);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return new GameRuntimeSnapshot(GameRuntimeState.Unknown, Error: ex.Message);
+            }
+        }, cancellationToken);
 
     public async Task<GameLaunchResult> LaunchAsync(CancellationToken cancellationToken = default)
     {
         await _launchGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        Volatile.Write(ref _isLaunching, 1);
         try
         {
             var saved = await settingsStore.LoadAsync(cancellationToken).ConfigureAwait(false);
-            var settings = validator.Normalize(saved);
             return await Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (processLauncher.FindRunningGame(settings.GameExecutablePath) is int existingId)
+                var settings = validator.Normalize(saved);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (processLauncher.FindRunningGame() is int existingId)
                     return new GameLaunchResult(GameLaunchStatus.AlreadyRunning, existingId);
 
                 var request = new GameStartRequest(settings.GameExecutablePath, settings.LaunchArguments,
@@ -44,6 +64,10 @@ public sealed class GameLaunchService(
                 return new GameLaunchResult(GameLaunchStatus.Started, processLauncher.Start(request));
             }, CancellationToken.None).ConfigureAwait(false);
         }
-        finally { _launchGate.Release(); }
+        finally
+        {
+            Volatile.Write(ref _isLaunching, 0);
+            _launchGate.Release();
+        }
     }
 }

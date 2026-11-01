@@ -40,11 +40,12 @@ public sealed class SettingsViewModel(IGameSettingsStore settingsStore, GameLaun
         IsBusy = true;
         try
         {
-            var settings = validator.Normalize(new GameLaunchSettings
+            var draft = new GameLaunchSettings
             {
                 GameExecutablePath = GamePath,
                 LaunchArguments = LaunchArguments
-            });
+            };
+            var settings = await Task.Run(() => validator.Normalize(draft));
             await settingsStore.SaveAsync(settings);
             GamePath = settings.GameExecutablePath;
             LaunchArguments = settings.LaunchArguments;

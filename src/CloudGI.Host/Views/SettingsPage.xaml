@@ -25,10 +25,6 @@
                    IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}"
                    TextWrapping="Wrap" MinHeight="72" MaxLength="8192"
                    PlaceholderText="例如：-screen-width 1280 -screen-height 720 -screen-fullscreen 0" />
-          <TextBlock Text="留空时使用游戏默认设置。只填写参数，不包含程序路径；参数是否生效取决于游戏版本。"
-                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock Text="修改后请先保存。若游戏已在运行，新参数将在下次启动时生效。"
-                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Content="保存设置" Click="Save_Click"
                     AutomationProperties.AutomationId="SaveSettingsButton"

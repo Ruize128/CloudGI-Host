@@ -6,20 +6,25 @@
     <StackPanel Margin="28" MaxWidth="760" Spacing="24">
       <StackPanel Spacing="8">
         <TextBlock Text="CloudGI Host" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock Text="配置并启动这台电脑上的原神。"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
       </StackPanel>
       <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
               BorderThickness="1" CornerRadius="8" Padding="24">
         <StackPanel Spacing="16">
           <TextBlock Text="原神" Style="{StaticResource SubtitleTextBlockStyle}" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="{x:Bind ViewModel.GameStateText, Mode=OneWay}"
+                       AutomationProperties.AutomationId="GameRuntimeStateText"
+                       Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.GameStateDetail, Mode=OneWay}" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
           <TextBlock Text="游戏文件" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBlock Text="{x:Bind ViewModel.GamePath, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-          <TextBlock Text="已保存的启动参数" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="启动参数" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBlock Text="{x:Bind ViewModel.Arguments, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
           <StackPanel Orientation="Horizontal" Spacing="12">
-            <Button Content="启动游戏" Click="LaunchGame_Click"
+            <Button Content="{x:Bind ViewModel.LaunchButtonText, Mode=OneWay}" Click="LaunchGame_Click"
                     AutomationProperties.AutomationId="LaunchGameButton"
                     IsEnabled="{x:Bind ViewModel.CanLaunch, Mode=OneWay}"
                     Style="{StaticResource AccentButtonStyle}" />

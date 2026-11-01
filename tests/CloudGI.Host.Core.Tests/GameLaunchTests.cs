@@ -147,7 +147,7 @@ public sealed class GameLaunchTests : IDisposable
     {
         public int StartCount { get; private set; }
         public GameStartRequest? LastRequest { get; private set; }
-        public int? FindRunningGame(string executablePath) => StartCount == 0 ? null : 12345;
+        public int? FindRunningGame() => StartCount == 0 ? null : 12345;
         public int Start(GameStartRequest request)
         {
             LastRequest = request;

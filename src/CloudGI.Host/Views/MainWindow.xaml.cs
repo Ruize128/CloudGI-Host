@@ -14,11 +14,18 @@ public sealed partial class MainWindow : Window
     private readonly HomePage _homePage;
     private readonly SettingsPage _settingsPage;
     private bool _initialized;
+    private readonly CancellationTokenSource _monitoringCts = new();
 
-    public MainWindow(IGameSettingsStore settingsStore, GameLaunchValidator validator, IGameLaunchService launchService)
+    public MainWindow(IGameSettingsStore settingsStore, GameLaunchValidator validator, IGameLaunchService launchService,
+        IGameStatusService statusService)
     {
         InitializeComponent();
-        _homePage = new HomePage(new MainViewModel(settingsStore, validator, launchService));
+        Closed += (_, _) =>
+        {
+            _monitoringCts.Cancel();
+            _monitoringCts.Dispose();
+        };
+        _homePage = new HomePage(new MainViewModel(settingsStore, validator, launchService, statusService));
         _settingsPage = new SettingsPage(new SettingsViewModel(settingsStore, validator), AppWindow.Id);
         _homePage.SettingsRequested += (_, _) => Navigation.SelectedItem = Navigation.SettingsItem;
         ContentFrame.Content = _homePage;
@@ -50,8 +57,11 @@ public sealed partial class MainWindow : Window
     {
         if (_initialized) return;
         _initialized = true;
+        var token = _monitoringCts.Token;
+        var monitoring = _homePage.ViewModel.MonitorGameStatusAsync(token);
         await _settingsPage.ViewModel.LoadAsync();
         await _homePage.ViewModel.RefreshAsync();
+        await monitoring;
     }
 
     private async void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

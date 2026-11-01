@@ -6,25 +6,33 @@ namespace CloudGI.Host.Platform;
 
 public sealed class WindowsGameProcessLauncher : IGameProcessLauncher
 {
-    public int? FindRunningGame(string executablePath)
+    public int? FindRunningGame()
     {
         using var current = Process.GetCurrentProcess();
+        Win32Exception? detectionError = null;
         foreach (var name in GameLaunchValidator.ExecutableNames)
         {
-            foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(name)))
+            var processes = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(name));
+            try
             {
-                using (process)
+                foreach (var process in processes)
                 {
                     try
                     {
-                        if (!process.HasExited && process.SessionId == current.SessionId)
+                        if (process.SessionId == current.SessionId && !process.HasExited)
                             return process.Id;
                     }
-                    catch (InvalidOperationException) { }
-                    catch (Win32Exception) { }
+                    catch (InvalidOperationException) { } // Exited during enumeration; retry next poll.
+                    catch (Win32Exception ex) { detectionError = ex; }
                 }
             }
+            finally
+            {
+                // Dispose every wrapper, including those after an early match.
+                foreach (var process in processes) process.Dispose();
+            }
         }
+        if (detectionError is not null) throw detectionError;
         return null;
     }
 

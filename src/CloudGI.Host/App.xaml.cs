@@ -19,8 +19,8 @@ public partial class App : Application
         var store = new JsonGameSettingsStore(configurationPath);
         var validator = new GameLaunchValidator();
         // The same service instance can later be injected into Host's control API.
-        IGameLaunchService launcher = new GameLaunchService(store, validator, new WindowsGameProcessLauncher());
-        _window = new MainWindow(store, validator, launcher);
+        var launcher = new GameLaunchService(store, validator, new WindowsGameProcessLauncher());
+        _window = new MainWindow(store, validator, launcher, launcher);
         _window.Activate();
     }
 }
