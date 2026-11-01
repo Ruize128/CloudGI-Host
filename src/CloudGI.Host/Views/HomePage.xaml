@@ -10,6 +10,20 @@
       <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
               BorderThickness="1" CornerRadius="8" Padding="24">
+        <StackPanel Spacing="12">
+          <TextBlock Text="手机串流" Style="{StaticResource SubtitleTextBlockStyle}" />
+          <TextBlock Text="{x:Bind Streaming.StateText, Mode=OneWay}" TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="StreamingStateText" />
+          <TextBlock Text="{x:Bind Streaming.Detail, Mode=OneWay}" TextWrapping="Wrap"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="配对与局域网连接请打开设置。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <Button Content="重新启动串流服务" Click="RestartStreaming_Click"
+                  IsEnabled="{x:Bind Streaming.IsNotBusy, Mode=OneWay}" />
+        </StackPanel>
+      </Border>
+      <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="1" CornerRadius="8" Padding="24">
         <StackPanel Spacing="16">
           <TextBlock Text="原神" Style="{StaticResource SubtitleTextBlockStyle}" />
           <StackPanel Spacing="8">

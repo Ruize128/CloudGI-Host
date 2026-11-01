@@ -1,0 +1,38 @@
+<Project>
+  <PropertyGroup>
+    <SunshineVersion>2026.914.233613</SunshineVersion>
+    <SunshineArchitecture Condition="'$(RuntimeIdentifier)' == 'win-arm64'">ARM64</SunshineArchitecture>
+    <SunshineArchitecture Condition="'$(RuntimeIdentifier)' == 'win-x64'">AMD64</SunshineArchitecture>
+    <SunshineSha256 Condition="'$(SunshineArchitecture)' == 'ARM64'">5042736897b2078e3af55f8b2bf8604bf0cd0ceb9d54ada251c4f1c7e352ba24</SunshineSha256>
+    <SunshineSha256 Condition="'$(SunshineArchitecture)' == 'AMD64'">233008e46f4c0e501a586cbfd6c4fd4a4c0d414a0b5fc7f13c070eb92ec3824b</SunshineSha256>
+    <SunshineCache>$(MSBuildProjectDirectory)\obj\sunshine\$(SunshineVersion)\$(SunshineArchitecture)</SunshineCache>
+  </PropertyGroup>
+  <Target Name="PrepareBundledSunshine" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(SunshineArchitecture)' == ''" Text="Sunshine requires win-x64 or win-arm64." />
+    <MakeDir Directories="$(SunshineCache)" />
+    <DownloadFile SourceUrl="https://github.com/LizardByte/Sunshine/releases/download/v$(SunshineVersion)/Sunshine-Windows-$(SunshineArchitecture)-lite.zip"
+                  DestinationFolder="$(SunshineCache)" DestinationFileName="package.zip"
+                  Condition="!Exists('$(SunshineCache)\package.zip')" />
+    <GetFileHash Files="$(SunshineCache)\package.zip" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_SunshineHash" />
+    </GetFileHash>
+    <Error Condition="'%(_SunshineHash.FileHash)' != '$(SunshineSha256)'" Text="Sunshine SHA256 mismatch. Remove $(SunshineCache)\package.zip and rebuild." />
+    <Unzip SourceFiles="$(SunshineCache)\package.zip" DestinationFolder="$(SunshineCache)" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <_SunshinePayload Include="$(SunshineCache)\Sunshine\**\*"
+                        Exclude="$(SunshineCache)\Sunshine\scripts\**\*;$(SunshineCache)\Sunshine\tools\**\*" />
+      <_SunshineNotices Include="$(MSBuildThisFileDirectory)..\third-party\Sunshine\LICENSE;$(MSBuildThisFileDirectory)..\third-party\Sunshine\NOTICE.md" />
+    </ItemGroup>
+  </Target>
+  <Target Name="CopyBundledSunshine" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="PrepareBundledSunshine" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Copy SourceFiles="@(_SunshinePayload)" DestinationFiles="@(_SunshinePayload->'$(TargetDir)Sunshine\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_SunshineNotices)" DestinationFolder="$(TargetDir)Sunshine" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <FileWrites Include="@(_SunshinePayload->'$(TargetDir)Sunshine\%(RecursiveDir)%(Filename)%(Extension)');@(_SunshineNotices->'$(TargetDir)Sunshine\%(Filename)%(Extension)')" />
+    </ItemGroup>
+  </Target>
+  <Target Name="PublishBundledSunshine" AfterTargets="Publish" DependsOnTargets="PrepareBundledSunshine" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Copy SourceFiles="@(_SunshinePayload)" DestinationFiles="@(_SunshinePayload->'$(PublishDir)Sunshine\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_SunshineNotices)" DestinationFolder="$(PublishDir)Sunshine" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

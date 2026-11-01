@@ -1,5 +1,6 @@
 using CloudGI.Host.Core.Configuration;
 using CloudGI.Host.Core.Games;
+using CloudGI.Host.Core.Streaming;
 using CloudGI.Host.ViewModels;
 using Microsoft.UI.Windowing;
 using System.Runtime.InteropServices;
@@ -14,19 +15,22 @@ public sealed partial class MainWindow : Window
     private readonly HomePage _homePage;
     private readonly SettingsPage _settingsPage;
     private bool _initialized;
+    private readonly StreamingViewModel _streaming;
     private readonly CancellationTokenSource _monitoringCts = new();
 
     public MainWindow(IGameSettingsStore settingsStore, GameLaunchValidator validator, IGameLaunchService launchService,
-        IGameStatusService statusService)
+        IGameStatusService statusService, ISunshineService sunshine)
     {
         InitializeComponent();
         Closed += (_, _) =>
         {
             _monitoringCts.Cancel();
+            sunshine.Dispose();
             _monitoringCts.Dispose();
         };
-        _homePage = new HomePage(new MainViewModel(settingsStore, validator, launchService, statusService));
-        _settingsPage = new SettingsPage(new SettingsViewModel(settingsStore, validator), AppWindow.Id);
+        _streaming = new StreamingViewModel(sunshine);
+        _homePage = new HomePage(new MainViewModel(settingsStore, validator, launchService, statusService), _streaming);
+        _settingsPage = new SettingsPage(new SettingsViewModel(settingsStore, validator), AppWindow.Id, _streaming);
         _homePage.SettingsRequested += (_, _) => Navigation.SelectedItem = Navigation.SettingsItem;
         ContentFrame.Content = _homePage;
         Navigation.SelectedItem = Navigation.MenuItems[0];
@@ -58,10 +62,11 @@ public sealed partial class MainWindow : Window
         if (_initialized) return;
         _initialized = true;
         var token = _monitoringCts.Token;
+        var streaming = _streaming.MonitorAsync(token);
         var monitoring = _homePage.ViewModel.MonitorGameStatusAsync(token);
         await _settingsPage.ViewModel.LoadAsync();
         await _homePage.ViewModel.RefreshAsync();
-        await monitoring;
+        await Task.WhenAll(monitoring, streaming);
     }
 
     private async void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

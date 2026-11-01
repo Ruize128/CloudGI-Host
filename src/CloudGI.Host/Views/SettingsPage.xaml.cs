@@ -10,10 +10,12 @@ public sealed partial class SettingsPage : Page
 {
     private readonly WindowId _ownerWindow;
     public SettingsViewModel ViewModel { get; }
+    public StreamingViewModel Streaming { get; }
 
-    public SettingsPage(SettingsViewModel viewModel, WindowId ownerWindow)
+    public SettingsPage(SettingsViewModel viewModel, WindowId ownerWindow, StreamingViewModel streaming)
     {
         ViewModel = viewModel;
+        Streaming = streaming;
         _ownerWindow = ownerWindow;
         InitializeComponent();
     }
@@ -38,6 +40,10 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex) { ViewModel.ReportError("无法打开目录选择器：" + ex.Message); }
     }
+
+    private async void SaveStreamingName_Click(object sender, RoutedEventArgs e) => await Streaming.SaveNameAsync();
+    private async void Pair_Click(object sender, RoutedEventArgs e) => await Streaming.PairAsync();
+    private async void EnableNetwork_Click(object sender, RoutedEventArgs e) => await Streaming.EnableNetworkAsync();
 
     private async void Save_Click(object sender, RoutedEventArgs e) => await ViewModel.SaveAsync();
 }

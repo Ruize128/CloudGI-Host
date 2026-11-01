@@ -21,6 +21,36 @@ Windows 原生游戏主机程序，使用 C#、.NET 10 和 WinUI 3。
 配置文件不随源码提交；损坏或不支持的配置会显示错误，由用户明确重新保存。
 保存使用同目录临时文件替换，避免直接覆盖写入时留下半份配置。
 
+## 内置 Sunshine
+
+Host 随附官方 Sunshine `2026.914.233613` lite 运行文件，按 ARM64 / x64 构建自动选择架构。
+首次编译从官方 GitHub 下载并校验 SHA256，缓存在 `src/CloudGI.Host/obj/sunshine`；之后可复用缓存。
+程序运行时只使用输出目录的 `Sunshine` 副本，不下载文件，不安装或接管 Sunshine 系统服务。
+版本、下载地址和校验值位于 `build/Sunshine.targets`；上游许可及源码获取说明位于 `third-party/Sunshine`。
+
+启动 Host 会自动启动专属实例。主页显示名称、端口、版本和启动状态；首次编码器检测可能需要数十秒。
+设置页可修改主机名称；保存后会重启专属串流实例并断开当前连接，配对身份保持不变。
+配置、证书、UUID、配对记录及日志独立保存在 `%LOCALAPPDATA%\CloudGI\Host\Sunshine`。
+本机管理密码随机生成并通过 Windows DPAPI 保存，管理请求仅连接本机并核验本实例的证书。
+
+默认优先使用基础端口 `48989`，检测 HTTP / HTTPS / Web UI / RTSP 及视频、控制、音频 UDP 的完整端口组；
+冲突时尝试其他端口组并保存结果。端口预检之后仍会检查服务响应及专属 UUID，失败时报告原因。
+独立安装的 Sunshine 的配置、身份、端口和服务保持原样。
+
+手机连接流程：
+
+1. 等待主页显示“可连接”。在设置页点击“允许局域网连接”，按正常流程确认 Windows 授权。
+   此操作只为当前随附 Sunshine 程序创建本地子网入站规则；移动程序目录后需要重新设置。
+2. 在同一局域网的官方 Moonlight 中选择 CloudGI 的主机名称。自动发现不可达时可手动添加 `IP:基础端口` 排查。
+3. 手机显示 PIN 后，在 Host 设置页选择等待配对的设备、输入四位 PIN 并点击“配对”。
+4. 配对完成后在 Moonlight 选择 Desktop，验证电脑画面、声音和基础输入。
+5. 关闭 Host 会停止所属 Sunshine，Windows Job Object 也会在 Host 异常退出时清理它。
+   已有 Sunshine 继续运行；退出 Host 不关闭游戏。
+
+本轮保留现有游戏和显示器分辨率。当前仍是显示器级捕获；游戏自动启动串流入口、原生多点触控和
+CloudGI Client 的 Moonlight 集成属于后续工作。Windows 发现服务可能按计算机名生成 mDNS 实例名，
+列表展示名称以 Sunshine 返回的主机信息为准；同机双实例发现需要实际手机验收。
+
 ## 游戏运行状态
 
 `GameLaunchService` 同时提供独立的 `IGameStatusService.GetStatusAsync()` 查询入口，供界面和后续控制 API 复用。
@@ -34,7 +64,7 @@ Windows 适配层按 `YuanShen` / `GenshinImpact` 进程名查找，筛选当前
 
 ## 编译与运行
 
-需要 Windows 11（x64 或 ARM64）和 .NET 10 SDK。首次构建需要联网还原 NuGet 依赖。
+编译需要 Windows 11（x64 或 ARM64）和 .NET 10 SDK。首次构建需要联网还原 NuGet 依赖及 Sunshine。
 可在 Visual Studio 中打开 `CloudGI.Host.slnx`，也可以使用 Windows PowerShell。
 WinUI 的构建与运行在 Windows 中完成；macOS 可编辑源码并运行核心逻辑测试。
 
@@ -59,18 +89,32 @@ dotnet build CloudGI.Host.slnx -p:Platform=x64
 dotnet run --project src/CloudGI.Host -p:Platform=x64 --no-build
 ```
 
-Windows App SDK 运行时随构建输出提供；运行仍需要同架构的 .NET 10 运行时。
-目前为直接启动可执行程序的 unpackaged 应用。
+输出随附 .NET 10、Windows App SDK 运行时及 Sunshine，目标电脑无需单独安装 .NET 或 Sunshine。
+目前为直接启动可执行程序的 unpackaged 应用；使用完整输出目录运行。
+
+生成自包含发布目录：
+
+```powershell
+dotnet publish src/CloudGI.Host/CloudGI.Host.csproj -c Release -p:Platform=ARM64 -p:RestoreLockedMode=true
+# Windows 台式机将 ARM64 换为 x64。
+```
+
+发布目录位于 `src/CloudGI.Host/bin/<平台>/Release/<目标框架>/<运行标识>/publish`。
+发布会一并携带应用的 PRI / 编译 XAML 资源；不能只复制 exe。
 
 ## 核心服务与后续 Client 接入
 
 - `src/CloudGI.Host`：WinUI 导航、主页、设置页、ViewModel 和 Windows 进程适配。
-- `src/CloudGI.Host.Core`：配置存储、路径校验、启动请求及重复启动保护，不依赖 WinUI。
-- `tests/CloudGI.Host.Core.Tests`：配置异常、参数保留、路径解析、并发启动和取消等测试。
+- `src/CloudGI.Host.Core`：配置存储、路径校验、启动请求及重复启动保护，以及专属 Sunshine 配置和端口选择，不依赖 WinUI。
+- `tests/CloudGI.Host.Core.Tests`：配置异常、参数保留、路径解析、并发启动和取消，以及 Sunshine 身份保留、配置隔离、端口冲突等测试。
 
 主页通过 `IGameLaunchService.LaunchAsync()` 启动游戏。未来 Host 控制 API 可复用同一个服务实例，
 无需模拟按钮点击。服务只读取 Host 已保存的配置，调用者不传入可执行文件、命令行或脚本。
-当前没有新增 Client 协议、网络接口、配对或串流功能。
+CloudGI Client 现在通过专属 HTTPS 控制入口自动配对。控制端口为 Sunshine 基础端口加 2，
+提供 `GET /cloudgi/info` 和 `POST /cloudgi/pair`；配对请求仅匹配同一客户端标识和来源地址。
+这是可信家庭局域网自动授权模式，局域网可达接口的 CloudGI Client 可以自动取得串流授权；不用于公网暴露。
+Sunshine 管理凭据始终留在 Host。自动配对仅处理授权，不接收程序路径、命令行或游戏启动请求。
+Windows 放行规则分别限定到随附 Sunshine 和本 Host 程序、本地子网；首次准备会请求正常 Windows 授权。
 
 运行核心测试（Windows / macOS 均可）：
 
@@ -142,3 +186,21 @@ NAS 路径已恢复可访问，Windows 验证副本的状态服务、主页 View
 - 状态记录未出现检测错误；游戏实际退出后，复查不存在 YuanShen / GenshinImpact 进程。
 - Host 验证进程及只读观察程序已结束，游戏路径和启动参数保留原样。
 - 本次补测未发现需要修改功能代码的问题；状态检测改动仍未提交。
+
+### 内置 Sunshine 集成验证（2026-11-01）
+
+- macOS 核心测试共 32 项通过，新增专属配置、名称输入、身份初始化和 TCP / UDP 派生端口冲突覆盖。
+- Windows ARM64 Debug 构建及 x64 / ARM64 Release 自包含发布通过。
+- 临时 Windows 集成程序直接使用生产配置和进程管理代码，验证实际 Sunshine 启动、端口组回退、重复实例保护、
+  本机管理认证与证书核验、改名、UUID 保留、重新打开，以及强制终止 Host 后的 Job Object 清理；全部通过。
+- 原有 Sunshine 的服务响应与 UUID 在验证前后保持一致。未启动游戏。
+- 用户已确认官方 Moonlight 可以发现、配对并投屏；声音和基础输入未单独确认。
+
+### CloudGI Client 自动配对（2026-11-01）
+
+- 新增可信局域网 HTTPS 自动配对入口，与 Sunshine 复用同一主机证书。
+- 控制端口纳入完整端口组冲突检查；启动时执行实际 HTTPS 握手和身份自检。
+- Windows TLS 使用当前用户密钥容器导入证书，避免 Schannel 无法使用临时私钥的问题。
+- 34 项核心测试通过，覆盖客户端标识、PIN 格式及来源地址和待配对会话的匹配。
+- Android 真机日志已确认发现 CloudGI 主机、无需手动 PIN 完成首次配对、查询 Desktop 并接收和渲染 H.264 视频帧。
+- 当前虚拟机日志显示音频采集初始化失败，声音尚不可用；输入和重连仍需分别验收。

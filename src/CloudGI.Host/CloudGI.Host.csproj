@@ -9,7 +9,7 @@
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <SelfContained>false</SelfContained>
+    <SelfContained>true</SelfContained>
     <Platforms>x64;ARM64</Platforms>
     <Platform Condition="'$(Platform)' == '' or '$(Platform)' == 'AnyCPU'">$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString())</Platform>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$(Platform.ToLowerInvariant())</RuntimeIdentifier>
@@ -24,6 +24,17 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9169" />
   </ItemGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../CloudGI.Host.Core/CloudGI.Host.Core.csproj" />
   </ItemGroup>
+  <!-- The unpackaged publish must carry the application's PRI and compiled XAML, too. -->
+  <Target Name="PublishWinUIResources" AfterTargets="Publish">
+    <ItemGroup>
+      <_AppXbf Include="$(TargetDir)Views\**\*.xbf" />
+    </ItemGroup>
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pri" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="$(TargetDir)App.xbf" DestinationFolder="$(PublishDir)" Condition="Exists('$(TargetDir)App.xbf')" />
+    <Copy SourceFiles="@(_AppXbf)" DestinationFiles="@(_AppXbf->'$(PublishDir)Views\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+  <Import Project="../../build/Sunshine.targets" />
 </Project>
