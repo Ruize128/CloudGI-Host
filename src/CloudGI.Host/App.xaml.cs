@@ -24,9 +24,10 @@ public partial class App : Application
             "CloudGI", "Host", "settings.json");
         var store = new JsonGameSettingsStore(configurationPath);
         var validator = new GameLaunchValidator();
-        // The same service instance can later be injected into Host's control API.
-        var launcher = new GameLaunchService(store, validator, new WindowsGameProcessLauncher());
-        var sunshine = new WindowsSunshineService(Path.Combine(Path.GetDirectoryName(configurationPath)!, "Sunshine"));
+        // UI and remote requests share launch serialization and process detection.
+        var processes = new WindowsGameProcessLauncher();
+        var launcher = new GameLaunchService(store, validator, processes);
+        var sunshine = new WindowsSunshineService(Path.Combine(Path.GetDirectoryName(configurationPath)!, "Sunshine"), launcher, launcher, processes);
         _window = new MainWindow(store, validator, launcher, launcher, sunshine);
         _window.Activate();
     }

@@ -1,4 +1,5 @@
 using CloudGI.Host.Core.Streaming;
+using CloudGI.Host.Core.Games;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -21,7 +22,7 @@ internal sealed class CloudGiControlServer : IDisposable
     private CloudGiControlServer(WebApplication application, X509Certificate2 certificate)
     { _application = application; _certificate = certificate; }
 
-    public static async Task<CloudGiControlServer> StartAsync(ISunshineService sunshine, SunshineConfiguration configuration,
+    public static async Task<CloudGiControlServer> StartAsync(ISunshineService sunshine, GameSessionService games, GameStreamLease streamLease, SunshineConfiguration configuration,
         SunshineSettings settings, string hostId, CancellationToken token)
     {
         using var pem = X509Certificate2.CreateFromPemFile(configuration.FilePath("credentials/cacert.pem"), configuration.FilePath("credentials/cakey.pem"));
@@ -34,6 +35,7 @@ internal sealed class CloudGiControlServer : IDisposable
             options.ListenAnyIP(settings.Port + 2, listener => listener.UseHttps(certificate));
         });
         var application = builder.Build();
+        var verifier = new PairedClientRequestVerifier(configuration.FilePath("state.json"));
         var server = new CloudGiControlServer(application, certificate);
         application.Use(async (context, next) =>
         {
@@ -43,7 +45,7 @@ internal sealed class CloudGiControlServer : IDisposable
         application.MapGet("/cloudgi/info", () => Results.Json(new
         {
             protocolVersion = 1, hostId, name = settings.Name, sunshinePort = settings.Port,
-            sunshineHttpsPort = settings.Port - 5, pairingMode = "automatic-lan"
+            sunshineHttpsPort = settings.Port - 5, pairingMode = "automatic-lan", gameControl = "signed-request-v1", disconnectPolicy = "close-game-lease-v1"
         }));
         application.MapPost("/cloudgi/pair", async Task<IResult> (AutomaticPairRequest request, HttpContext context) =>
         {
@@ -76,6 +78,60 @@ internal sealed class CloudGiControlServer : IDisposable
             catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException)
             { return Results.Json(new { error = "Pairing did not complete. Retry the connection." }, statusCode: 502); }
             finally { server._pairingGate.Release(); }
+        });
+        // Signed with the existing Moonlight device key. No new password, PIN UI, or executable parameters.
+        async Task<bool> Authorized(HttpContext context) =>
+            context.Request.Headers["X-CloudGI-Client"] == "1" &&
+            await verifier.VerifyAsync(context.Request.Method, context.Request.Path.Value!,
+                context.Request.Headers["X-CloudGI-Device"].ToString(),
+                context.Request.Headers["X-CloudGI-Time"].ToString(),
+                context.Request.Headers["X-CloudGI-Nonce"].ToString(),
+                context.Request.Headers["X-CloudGI-Signature"].ToString(), context.RequestAborted);
+        IResult SessionResult(GameSessionSnapshot snapshot) => Results.Json(new
+        {
+            requestId = snapshot.RequestId, state = snapshot.State.ToString().ToLowerInvariant(),
+            processId = snapshot.ProcessId, error = snapshot.Error
+        });
+        application.MapPost("/cloudgi/game/start/{requestId}", async Task<IResult> (string requestId, HttpContext context) =>
+        {
+            if (!await Authorized(context)) return Results.Json(new { error = "设备尚未授权，请重新连接配对。" }, statusCode: 403);
+            if (context.Request.ContentLength is > 0 || context.Request.Headers.ContainsKey("Transfer-Encoding"))
+                return Results.BadRequest(new { error = "启动请求不接受游戏路径或参数。" });
+            if (sunshine.Snapshot.State != SunshineState.Ready)
+                return Results.Json(new { error = "Host 串流服务尚未就绪，请稍后重试。" }, statusCode: 503);
+            if (streamLease.IsClosing) return Results.Conflict(new { error = "游戏正在退出，请稍后重新启动。" });
+            try { return SessionResult(games.Start(requestId)); }
+            catch (ArgumentException) { return Results.BadRequest(new { error = "启动请求标识无效。" }); }
+        });
+        application.MapGet("/cloudgi/game/status/{requestId}", async Task<IResult> (string requestId, HttpContext context) =>
+        {
+            if (!await Authorized(context)) return Results.Json(new { error = "设备尚未授权，请重新连接配对。" }, statusCode: 403);
+            var snapshot = await games.GetAsync(requestId, context.RequestAborted);
+            return snapshot is null ? Results.NotFound(new { error = "启动请求已失效，请重新点击启动游戏。" }) : SessionResult(snapshot);
+        });
+        application.MapPost("/cloudgi/game/stream/{requestId}", async Task<IResult> (string requestId, HttpContext context) =>
+        {
+            if (!await Authorized(context)) return Results.StatusCode(403);
+            var game = await games.GetAsync(requestId, context.RequestAborted);
+            if (game is not { State: GameSessionState.Running, ProcessId: int pid })
+                return Results.Conflict(new { error = "游戏进程尚未就绪，请重新启动。" });
+            try { await streamLease.BeginAsync(requestId, pid, context.RequestAborted); return Results.Json(new { ok = true }); }
+            catch (InvalidOperationException ex) { return Results.Conflict(new { error = ex.Message }); }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or ArgumentException)
+            { return Results.Conflict(new { error = "无法管理游戏进程，请确认 Host 已获管理员授权。" }); }
+        });
+        application.MapPost("/cloudgi/game/heartbeat/{requestId}", async Task<IResult> (string requestId, HttpContext context) =>
+        {
+            if (!await Authorized(context)) return Results.StatusCode(403);
+            return await streamLease.HeartbeatAsync(requestId, context.RequestAborted)
+                ? Results.Json(new { ok = true }) : Results.Conflict(new { error = "串流会话已结束，请重新启动游戏。" });
+        });
+        application.MapPost("/cloudgi/game/disconnect/{requestId}", async Task<IResult> (string requestId, HttpContext context) =>
+        {
+            if (!await Authorized(context)) return Results.StatusCode(403);
+            await streamLease.EndAsync(requestId, context.RequestAborted);
+            return streamLease.LastError is null ? Results.Json(new { ok = true })
+                : Results.Json(new { error = streamLease.LastError }, statusCode: 500);
         });
         try
         {

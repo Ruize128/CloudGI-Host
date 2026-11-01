@@ -49,14 +49,18 @@ public sealed class GameLaunchService(
         Volatile.Write(ref _isLaunching, 1);
         try
         {
+            // Reconnect to a running game even when the saved path is temporarily unavailable.
+            var existingId = await Task.Run(processLauncher.FindRunningGame, cancellationToken).ConfigureAwait(false);
+            if (existingId is int runningId)
+                return new GameLaunchResult(GameLaunchStatus.AlreadyRunning, runningId);
             var saved = await settingsStore.LoadAsync(cancellationToken).ConfigureAwait(false);
             return await Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var settings = validator.Normalize(saved);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (processLauncher.FindRunningGame() is int existingId)
-                    return new GameLaunchResult(GameLaunchStatus.AlreadyRunning, existingId);
+                if (processLauncher.FindRunningGame() is int currentId)
+                    return new GameLaunchResult(GameLaunchStatus.AlreadyRunning, currentId);
 
                 var request = new GameStartRequest(settings.GameExecutablePath, settings.LaunchArguments,
                     Path.GetDirectoryName(settings.GameExecutablePath)!);

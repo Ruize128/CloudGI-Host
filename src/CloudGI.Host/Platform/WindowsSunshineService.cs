@@ -1,4 +1,5 @@
 using CloudGI.Host.Core.Streaming;
+using CloudGI.Host.Core.Games;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -13,6 +14,9 @@ namespace CloudGI.Host.Platform;
 public sealed class WindowsSunshineService : ISunshineService
 {
     private readonly SunshineConfiguration _configuration;
+    private readonly GameSessionService _games;
+    private readonly GameStreamLease _streamLease;
+    private readonly Task _leaseMonitor;
     private readonly string _executable;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Mutex _instanceMarker;
@@ -24,9 +28,12 @@ public sealed class WindowsSunshineService : ISunshineService
     private bool _disposed;
     public SunshineSnapshot Snapshot { get; private set; } = new(SunshineState.Stopped, "", 48989);
 
-    public WindowsSunshineService(string directory, string? executable = null)
+    public WindowsSunshineService(string directory, IGameLaunchService launcher, IGameStatusService status, IGameProcessController processes, string? executable = null)
     {
         _configuration = new(directory);
+        _games = new GameSessionService(launcher, status, _lifetime.Token);
+        _streamLease = new GameStreamLease(processes);
+        _leaseMonitor = Task.Run(MonitorLeaseAsync);
         _executable = executable ?? Path.Combine(AppContext.BaseDirectory, "Sunshine", "sunshine.exe");
         var sid = WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName;
         _instanceMarker = new Mutex(false, @"Local\CloudGI.Sunshine." + sid, out _ownsInstance);
@@ -92,7 +99,7 @@ public sealed class WindowsSunshineService : ISunshineService
                         if (root.Element("hostname")?.Value != settings.Name || root.Element("uniqueid")?.Value != expected)
                             throw new IOException("Sunshine 响应的主机身份与专属配置不一致。");
                         Snapshot = Snapshot with { State = SunshineState.Ready };
-                        _control = await CloudGiControlServer.StartAsync(this, _configuration, settings, expected!, token).ConfigureAwait(false);
+                        _control = await CloudGiControlServer.StartAsync(this, _games, _streamLease, _configuration, settings, expected!, token).ConfigureAwait(false);
                         return;
                     }
                 }
@@ -108,6 +115,20 @@ public sealed class WindowsSunshineService : ISunshineService
             Snapshot = Snapshot with { State = SunshineState.Failed, ProcessId = null, Error = ex.Message };
             if (ex is OperationCanceledException) throw;
         }
+    }
+
+    private async Task MonitorLeaseAsync()
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(_lifetime.Token).ConfigureAwait(false))
+            {
+                await _streamLease.CheckTimeoutAsync(_lifetime.Token).ConfigureAwait(false);
+                if (_streamLease.LastError is { } error) Snapshot = Snapshot with { Error = error };
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
     }
 
     private async Task<string> GetPasswordAsync(CancellationToken token)
@@ -207,6 +228,7 @@ public sealed class WindowsSunshineService : ISunshineService
         if (_disposed) return;
         _disposed = true;
         _lifetime.Cancel();
+        _streamLease.EndCurrentAsync().GetAwaiter().GetResult();
         StopChild();
         if (_ownsInstance) _instanceMarker.Dispose();
         Snapshot = Snapshot with { State = SunshineState.Stopped, ProcessId = null };
