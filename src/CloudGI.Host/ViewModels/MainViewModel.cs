@@ -44,7 +44,7 @@ public sealed class MainViewModel(
     {
         GameRuntimeState.Running => $"PID {_gameState.ProcessId} · 新参数将在下次启动时生效。",
         GameRuntimeState.Starting => "正在处理启动请求，请留意 Windows 的确认窗口。",
-        GameRuntimeState.NotRunning => "尚未发现当前 Windows 会话中的游戏进程。",
+        GameRuntimeState.NotRunning => "尚未发现串流会话中的游戏进程。",
         _ => _gameState.Error is null ? "正在检查游戏进程…" : "无法确认游戏状态：" + _gameState.Error
     };
     private GameRuntimeState DisplayState => _isLaunching && _gameState.State != GameRuntimeState.Running

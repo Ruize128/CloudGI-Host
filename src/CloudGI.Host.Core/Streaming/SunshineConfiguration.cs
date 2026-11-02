@@ -7,7 +7,7 @@ namespace CloudGI.Host.Core.Streaming;
 
 public sealed record SunshineSettings(string Name, int Port = 48989);
 public enum SunshineState { Stopped, Starting, Ready, Failed }
-public sealed record SunshineSnapshot(SunshineState State, string Name, int Port, int? ProcessId = null, string? Error = null);
+public sealed record SunshineSnapshot(SunshineState State, string Name, int Port, int? ProcessId = null, string? Error = null, string? Encoder = null);
 public sealed record PendingPairing(string Id, string Name, string Address)
 {
     public string Label => string.IsNullOrWhiteSpace(Name) ? Address : $"{Name} ({Address})";
@@ -23,7 +23,7 @@ public interface ISunshineService : IDisposable
 }
 
 /// <summary>Configuration for CloudGI's private instance only. Never reads an installed Sunshine's data.</summary>
-public sealed class SunshineConfiguration(string directory)
+public sealed class SunshineConfiguration(string directory, bool childSession = false)
 {
     public string DirectoryPath { get; } = Path.GetFullPath(directory);
     public string FilePath(string name) => Path.Combine(DirectoryPath, name);
@@ -70,7 +70,7 @@ public sealed class SunshineConfiguration(string directory)
         finally { File.Delete(temporary); }
     }
 
-    public string Render(SunshineSettings settings)
+    public string Render(SunshineSettings settings, bool useHardwareEncoding = false)
     {
         var name = ValidateName(settings.Name);
         // Explicit absolute paths avoid Sunshine's installation-wide default config directory.
@@ -90,19 +90,47 @@ public sealed class SunshineConfiguration(string directory)
             native_pen_touch = enabled
             gamepad_driver = vigembus
             dd_configuration_option = disabled
-            """ + Environment.NewLine;
+            """ + Environment.NewLine + (childSession ? "capture = wgc" + Environment.NewLine : "")
+            + (useHardwareEncoding ? "" : "encoder = software" + Environment.NewLine);
     }
 
-    public async Task WriteAsync(SunshineSettings settings, CancellationToken token = default)
+    public async Task WriteAsync(SunshineSettings settings, CancellationToken token = default, bool useHardwareEncoding = false)
     {
         Directory.CreateDirectory(DirectoryPath);
         Directory.CreateDirectory(FilePath("credentials"));
-        await File.WriteAllTextAsync(FilePath("sunshine.conf"), Render(settings), new UTF8Encoding(false), token);
+        await File.WriteAllTextAsync(FilePath("sunshine.conf"), Render(settings, useHardwareEncoding), new UTF8Encoding(false), token);
         var statePath = FilePath("state.json");
-        if (!File.Exists(statePath))
+        var existing = File.Exists(statePath) ? await File.ReadAllBytesAsync(statePath, token) : [];
+        if (existing.Length == 0)
         {
+            // A killed write can leave an empty file. It contains no recoverable identity/devices.
+            // Commit a complete initial state atomically, including on first startup.
             var state = new { root = new { uniqueid = Guid.NewGuid().ToString().ToUpperInvariant(), named_devices = Array.Empty<object>() } };
-            await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(state, JsonOptions), token);
+            var temporary = FilePath("state." + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(state, JsonOptions), new UTF8Encoding(false), token);
+                token.ThrowIfCancellationRequested();
+                File.Move(temporary, statePath, true);
+            }
+            finally { File.Delete(temporary); }
+        }
+        else
+        {
+            // Never erase nonempty pairing data. Report corrupt state before launching Sunshine,
+            // instead of advertising mDNS and waiting for an identity that cannot become valid.
+            try
+            {
+                using var state = JsonDocument.Parse(existing);
+                if (!state.RootElement.TryGetProperty("root", out var root) || root.ValueKind != JsonValueKind.Object ||
+                    !root.TryGetProperty("uniqueid", out var identity) || identity.ValueKind != JsonValueKind.String ||
+                    !Guid.TryParse(identity.GetString(), out _))
+                    throw new JsonException("Missing or invalid Sunshine host identity.");
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+            {
+                throw new InvalidDataException("Sunshine 状态文件损坏，原文件已保留：" + statePath, ex);
+            }
         }
         // This list belongs to CloudGI. A no-command Desktop entry starts streaming without launching a game.
         await File.WriteAllTextAsync(FilePath("apps.json"),

@@ -45,6 +45,17 @@
               BorderThickness="1" CornerRadius="8" Padding="24">
         <StackPanel Spacing="16">
           <TextBlock Text="手机串流" Style="{StaticResource SubtitleTextBlockStyle}" />
+          <StackPanel Spacing="12" Visibility="{x:Bind Streaming.ChildSessionVisibility}">
+            <TextBlock Text="Annex 后台桌面 · 实验功能" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock Text="游戏和 Sunshine 在独立 Windows 子会话中运行。请保持后台桌面窗口连接，可最小化到托盘；关闭该窗口会结束子会话。" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <NumberBox Header="宽度" Value="{x:Bind Streaming.ChildWidth, Mode=TwoWay}" Minimum="200" Maximum="8192" SmallChange="1" Width="140" IsEnabled="{x:Bind Streaming.IsNotBusy, Mode=OneWay}" />
+              <NumberBox Header="高度" Value="{x:Bind Streaming.ChildHeight, Mode=TwoWay}" Minimum="200" Maximum="8192" SmallChange="1" Width="140" IsEnabled="{x:Bind Streaming.IsNotBusy, Mode=OneWay}" />
+              <NumberBox Header="缩放 %" Value="{x:Bind Streaming.ChildScale, Mode=TwoWay}" Minimum="100" Maximum="500" SmallChange="25" Width="140" IsEnabled="{x:Bind Streaming.IsNotBusy, Mode=OneWay}" />
+            </StackPanel>
+            <Button Content="应用分辨率并重建后台桌面" Click="ApplyChildDisplay_Click" IsEnabled="{x:Bind Streaming.IsNotBusy, Mode=OneWay}" />
+            <TextBlock Text="请先断开串流并关闭游戏。重建会结束后台会话中的全部程序，主桌面分辨率不变。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
           <TextBlock Text="{x:Bind Streaming.StateText, Mode=OneWay}" TextWrapping="Wrap" />
           <TextBlock Text="{x:Bind Streaming.Detail, Mode=OneWay}" TextWrapping="Wrap"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

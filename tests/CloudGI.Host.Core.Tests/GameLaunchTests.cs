@@ -25,6 +25,49 @@ public sealed class GameLaunchTests : IDisposable
     }
 
     [Fact]
+    public async Task LegacySettingsDefaultToChildSessionWithoutChangingTheFile()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        const string legacy = "{\"schemaVersion\":1,\"gameExecutablePath\":\"offline NAS\",\"launchArguments\":\"-example keep\"}";
+        await File.WriteAllTextAsync(path, legacy);
+        var settings = await new JsonGameSettingsStore(path).LoadAsync();
+        Assert.True(settings.UseChildSession);
+        Assert.False(settings.UseHardwareEncoding);
+        Assert.Equal(legacy, await File.ReadAllTextAsync(path));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunModePersistsAcrossGameOptionUpdates(bool childSession)
+    {
+        var store = new JsonGameSettingsStore(Path.Combine(_directory, "settings.json"));
+        var original = new GameLaunchSettings { GameExecutablePath = "offline NAS", LaunchArguments = "-example keep" };
+        await store.SaveAsync(original);
+        await store.UpdateAsync(latest => latest with { UseChildSession = childSession });
+        await store.UpdateAsync(latest => latest with { TouchscreenMode = false, Fullscreen = false });
+        var reloaded = await new JsonGameSettingsStore(store.FilePath).LoadAsync();
+        Assert.Equal(original with { UseChildSession = childSession, TouchscreenMode = false, Fullscreen = false }, reloaded);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EncodingChoiceSurvivesExecutionModeChanges(bool hardware)
+    {
+        var store = new JsonGameSettingsStore(Path.Combine(_directory, "settings.json"));
+        await store.SaveAsync(new GameLaunchSettings { GameExecutablePath = "offline NAS", LaunchArguments = "keep" });
+        await store.UpdateAsync(latest => latest with { UseHardwareEncoding = hardware });
+        await store.UpdateAsync(latest => latest with { UseChildSession = false, TouchscreenMode = false });
+        var saved = await new JsonGameSettingsStore(store.FilePath).LoadAsync();
+        Assert.Equal(hardware, saved.UseHardwareEncoding);
+        Assert.False(saved.UseChildSession);
+        Assert.False(saved.TouchscreenMode);
+        Assert.Equal("offline NAS", saved.GameExecutablePath);
+        Assert.Equal("keep", saved.LaunchArguments);
+    }
+
+    [Fact]
     public async Task SettingsRoundTripPreservesUnicodeAndQuotedArguments()
     {
         var store = new JsonGameSettingsStore(Path.Combine(_directory, "config", "settings.json"));

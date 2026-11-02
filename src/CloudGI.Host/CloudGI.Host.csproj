@@ -26,6 +26,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../CloudGI.Host.Core/CloudGI.Host.Core.csproj" />
+    <ProjectReference Include="../CloudGI.Host.Session/CloudGI.Host.Session.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <!-- The unpackaged publish must carry the application's PRI and compiled XAML, too. -->
   <Target Name="PublishWinUIResources" AfterTargets="Publish">
@@ -38,4 +39,17 @@
   </Target>
   <Import Project="../../build/Sunshine.targets" />
   <Import Project="../../build/Touchscreen.targets" />
+  <PropertyGroup>
+    <SessionOutput>$(MSBuildProjectDirectory)\..\CloudGI.Host.Session\bin\$(Platform)\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\</SessionOutput>
+  </PropertyGroup>
+  <Target Name="GatherSessionViewerFiles">
+    <ItemGroup><_SessionFiles Include="$(SessionOutput)**\*" /></ItemGroup>
+    <Error Condition="!Exists('$(SessionOutput)CloudGI.Host.Session.exe')" Text="Annex session viewer has not been built." />
+  </Target>
+  <Target Name="CopySessionViewer" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="GatherSessionViewerFiles">
+    <Copy SourceFiles="@(_SessionFiles)" DestinationFiles="@(_SessionFiles->'$(TargetDir)Session\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="PublishSessionViewer" AfterTargets="Publish" DependsOnTargets="GatherSessionViewerFiles">
+    <Copy SourceFiles="@(_SessionFiles)" DestinationFiles="@(_SessionFiles->'$(PublishDir)Session\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

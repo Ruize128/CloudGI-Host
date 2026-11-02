@@ -19,7 +19,7 @@ public sealed partial class MainWindow : Window
     private readonly CancellationTokenSource _monitoringCts = new();
 
     public MainWindow(IGameSettingsStore settingsStore, GameLaunchValidator validator, IGameLaunchService launchService,
-        IGameStatusService statusService, ISunshineService sunshine)
+        IGameStatusService statusService, ISunshineService sunshine, bool useChildSession, bool useHardwareEncoding, string? settingsError = null, bool isChildHost = false)
     {
         InitializeComponent();
         Closed += (_, _) =>
@@ -28,7 +28,8 @@ public sealed partial class MainWindow : Window
             sunshine.Dispose();
             _monitoringCts.Dispose();
         };
-        _streaming = new StreamingViewModel(sunshine);
+        if (isChildHost) Title = "CloudGI Host · 后台桌面";
+        _streaming = new StreamingViewModel(sunshine, settingsStore, useChildSession, useHardwareEncoding, settingsError, isChildHost);
         _homePage = new HomePage(new MainViewModel(settingsStore, validator, launchService, statusService), _streaming);
         _settingsPage = new SettingsPage(new SettingsViewModel(settingsStore, validator), AppWindow.Id, _streaming);
         _homePage.SettingsRequested += (_, _) => Navigation.SelectedItem = Navigation.SettingsItem;

@@ -12,6 +12,24 @@
               BorderThickness="1" CornerRadius="8" Padding="24">
         <StackPanel Spacing="12">
           <TextBlock Text="手机串流" Style="{StaticResource SubtitleTextBlockStyle}" />
+          <ToggleSwitch Header="使用独立后台桌面" OnContent="开启" OffContent="关闭"
+                        IsOn="{x:Bind Streaming.UseChildSession, Mode=OneWay}"
+                        IsEnabled="{x:Bind Streaming.CanChangeRunMode, Mode=OneWay}"
+                        Toggled="UseChildSession_Toggled"
+                        AutomationProperties.AutomationId="UseChildSessionToggle" />
+          <TextBlock Text="开启时，游戏和内置 Sunshine 由后台桌面中的子 Host 运行；关闭时，由当前 Host 在主桌面运行。"
+                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="{x:Bind Streaming.RunModeText}" />
+          <TextBlock Text="{x:Bind Streaming.RunModeHint, Mode=OneWay}" TextWrapping="Wrap"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <ToggleSwitch Header="使用硬件编码" OnContent="硬件编码" OffContent="软件编码"
+                        IsOn="{x:Bind Streaming.UseHardwareEncoding, Mode=OneWay}"
+                        IsEnabled="{x:Bind Streaming.CanChangeEncoding, Mode=OneWay}"
+                        Toggled="UseHardwareEncoding_Toggled"
+                        AutomationProperties.AutomationId="UseHardwareEncodingToggle" />
+          <TextBlock Text="{x:Bind Streaming.EncodingHint, Mode=OneWay}" TextWrapping="Wrap"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="{x:Bind Streaming.EncoderStateText, Mode=OneWay}" TextWrapping="Wrap" />
           <TextBlock Text="{x:Bind Streaming.StateText, Mode=OneWay}" TextWrapping="Wrap"
                      AutomationProperties.AutomationId="StreamingStateText" />
           <TextBlock Text="{x:Bind Streaming.Detail, Mode=OneWay}" TextWrapping="Wrap"
@@ -19,6 +37,9 @@
           <TextBlock Text="配对与局域网连接请打开设置。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <Button Content="重新启动串流服务" Click="RestartStreaming_Click"
                   IsEnabled="{x:Bind Streaming.IsNotBusy, Mode=OneWay}" />
+          <InfoBar IsOpen="{x:Bind Streaming.IsStatusOpen, Mode=OneWay}" IsClosable="False"
+                   Severity="{x:Bind Streaming.StatusSeverity, Mode=OneWay}"
+                   Message="{x:Bind Streaming.StatusMessage, Mode=OneWay}" />
         </StackPanel>
       </Border>
       <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

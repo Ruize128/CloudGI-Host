@@ -18,6 +18,7 @@ public sealed class WindowsSunshineService : ISunshineService
     private readonly GameStreamLease _streamLease;
     private readonly Task _leaseMonitor;
     private readonly string _executable;
+    private readonly bool _useHardwareEncoding;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Mutex _instanceMarker;
     private readonly bool _ownsInstance;
@@ -28,9 +29,10 @@ public sealed class WindowsSunshineService : ISunshineService
     private bool _disposed;
     public SunshineSnapshot Snapshot { get; private set; } = new(SunshineState.Stopped, "", 48989);
 
-    public WindowsSunshineService(string directory, IGameLaunchService launcher, IGameStatusService status, IGameProcessController processes, string? executable = null)
+    public WindowsSunshineService(string directory, IGameLaunchService launcher, IGameStatusService status, IGameProcessController processes, string? executable = null, bool childSession = false, bool useHardwareEncoding = false)
     {
-        _configuration = new(directory);
+        _useHardwareEncoding = useHardwareEncoding;
+        _configuration = new(directory, childSession);
         _games = new GameSessionService(launcher, status, _lifetime.Token);
         _streamLease = new GameStreamLease(processes);
         _leaseMonitor = Task.Run(MonitorLeaseAsync);
@@ -53,7 +55,7 @@ public sealed class WindowsSunshineService : ISunshineService
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_child is not null && !_child.Process.HasExited && Snapshot.State == SunshineState.Ready) return;
         StopChild();
-        Snapshot = Snapshot with { State = SunshineState.Starting, Error = null, ProcessId = null };
+        Snapshot = Snapshot with { State = SunshineState.Starting, Error = null, ProcessId = null, Encoder = null };
         try
         {
             if (!_ownsInstance) throw new InvalidOperationException("另一个 CloudGI Host 正在管理串流实例，请使用原来的窗口。");
@@ -61,7 +63,7 @@ public sealed class WindowsSunshineService : ISunshineService
             var settings = await _configuration.LoadAsync(token).ConfigureAwait(false);
             settings = settings with { Port = SunshineConfiguration.FindAvailablePort(settings.Port) };
             await _configuration.SaveAsync(settings, token).ConfigureAwait(false);
-            await _configuration.WriteAsync(settings, token).ConfigureAwait(false);
+            await _configuration.WriteAsync(settings, token, useHardwareEncoding: _useHardwareEncoding).ConfigureAwait(false);
             Snapshot = new(SunshineState.Starting, settings.Name, settings.Port);
             var password = await GetPasswordAsync(token).ConfigureAwait(false);
             // Credentials are initialized before the listener is started. This command exits without starting a server.
@@ -98,8 +100,20 @@ public sealed class WindowsSunshineService : ISunshineService
                         var expected = state.RootElement.GetProperty("root").GetProperty("uniqueid").GetString();
                         if (root.Element("hostname")?.Value != settings.Name || root.Element("uniqueid")?.Value != expected)
                             throw new IOException("Sunshine 响应的主机身份与专属配置不一致。");
-                        Snapshot = Snapshot with { State = SunshineState.Ready };
+                        // Sunshine can fall back even when an encoder is requested. Never advertise
+                        // hardware mode until its actual selected encoder is confirmed.
+                        using var log = new FileStream(_configuration.FilePath("sunshine.log"), FileMode.Open,
+                            FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                        using var reader = new StreamReader(log);
+                        var encoder = SunshineEncoding.ParseSelectedEncoder(await reader.ReadToEndAsync(token).ConfigureAwait(false));
+                        if (encoder is null) throw new IOException("正在等待 Sunshine 确认实际编码器。");
+                        if (!SunshineEncoding.MatchesSelection(encoder, _useHardwareEncoding))
+                            throw new InvalidOperationException(_useHardwareEncoding
+                                ? "当前环境没有可用的硬件编码器，Sunshine 已选择软件编码；服务已停止。请关闭“使用硬件编码”并重启 Host。"
+                                : "Sunshine 未能使用软件编码，服务已停止。请检查编码器日志。");
+                        Snapshot = Snapshot with { Encoder = encoder };
                         _control = await CloudGiControlServer.StartAsync(this, _games, _streamLease, _configuration, settings, expected!, token).ConfigureAwait(false);
+                        Snapshot = Snapshot with { State = SunshineState.Ready, Error = null };
                         return;
                     }
                 }

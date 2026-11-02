@@ -41,6 +41,8 @@ public sealed partial class SettingsPage : Page
         catch (Exception ex) { ViewModel.ReportError("无法打开目录选择器：" + ex.Message); }
     }
 
+    private async void ApplyChildDisplay_Click(object sender, RoutedEventArgs e) => await Streaming.ApplyChildDisplayAsync();
+
     private async void SaveStreamingName_Click(object sender, RoutedEventArgs e) => await Streaming.SaveNameAsync();
     private async void Pair_Click(object sender, RoutedEventArgs e) => await Streaming.PairAsync();
     private async void EnableNetwork_Click(object sender, RoutedEventArgs e) => await Streaming.EnableNetworkAsync();

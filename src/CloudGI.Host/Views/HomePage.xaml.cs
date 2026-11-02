@@ -17,6 +17,16 @@ public sealed partial class HomePage : Page
         InitializeComponent();
     }
 
+    private async void UseHardwareEncoding_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleSwitch toggle) await Streaming.SetUseHardwareEncodingAsync(toggle.IsOn);
+    }
+
+    private async void UseChildSession_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleSwitch toggle) await Streaming.SetUseChildSessionAsync(toggle.IsOn);
+    }
+
     private async void RestartStreaming_Click(object sender, RoutedEventArgs e) => await Streaming.RestartAsync();
 
     private async void TouchscreenMode_Toggled(object sender, RoutedEventArgs e)
