@@ -17,6 +17,12 @@ public sealed class JsonGameSettingsStore(string filePath) : IGameSettingsStore
     public async Task<GameLaunchSettings> LoadAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try { return await LoadCoreAsync(cancellationToken).ConfigureAwait(false); }
+        finally { _gate.Release(); }
+    }
+
+    private async Task<GameLaunchSettings> LoadCoreAsync(CancellationToken cancellationToken)
+    {
         try
         {
             await using var stream = new FileStream(FilePath, FileMode.Open, FileAccess.Read,
@@ -37,16 +43,35 @@ public sealed class JsonGameSettingsStore(string filePath) : IGameSettingsStore
         {
             throw new InvalidDataException("配置文件无法读取，请在设置中重新保存。", ex);
         }
+    }
+
+    public async Task<GameLaunchSettings> UpdateAsync(Func<GameLaunchSettings, GameLaunchSettings> update,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var settings = update(await LoadCoreAsync(cancellationToken).ConfigureAwait(false));
+            await SaveCoreAsync(settings, cancellationToken).ConfigureAwait(false);
+            return settings;
+        }
         finally { _gate.Release(); }
     }
 
     public async Task SaveAsync(GameLaunchSettings settings, CancellationToken cancellationToken = default)
     {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try { await SaveCoreAsync(settings, cancellationToken).ConfigureAwait(false); }
+        finally { _gate.Release(); }
+    }
+
+    private async Task SaveCoreAsync(GameLaunchSettings settings, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(settings);
         if (settings.SchemaVersion != 1 || settings.GameExecutablePath is null || settings.LaunchArguments is null)
             throw new InvalidDataException("配置内容或版本不受支持。");
 
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         var temporaryPath = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
@@ -66,7 +91,6 @@ public sealed class JsonGameSettingsStore(string filePath) : IGameSettingsStore
             try { File.Delete(temporaryPath); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
-            _gate.Release();
         }
     }
 }

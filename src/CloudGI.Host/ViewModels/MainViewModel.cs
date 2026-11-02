@@ -16,6 +16,10 @@ public sealed class MainViewModel(
     private string _gamePath = "尚未设置游戏路径";
     private string _arguments = "未设置（使用游戏默认值）";
     private bool _hasConfiguration;
+    private bool _touchscreenMode = true;
+    private bool _settingsLoaded;
+    public bool TouchscreenMode => _touchscreenMode;
+    public bool CanChangeTouchscreenMode => _settingsLoaded && !IsBusy;
     private bool _isLaunching;
     private bool _isMonitoring;
     private bool _showingLaunchResult;
@@ -79,6 +83,12 @@ public sealed class MainViewModel(
     private void ApplyGameState(GameRuntimeSnapshot snapshot)
     {
         if (_gameState == snapshot) return;
+        // A new remote/external launch supersedes a previous local failure banner.
+        if (snapshot.State == GameRuntimeState.Running && _gameState.State != GameRuntimeState.Running && !_isLaunching)
+        {
+            SetStatus("");
+            _showingLaunchResult = false;
+        }
         if (_gameState.State == GameRuntimeState.Running && snapshot.State == GameRuntimeState.NotRunning
             && _showingLaunchResult)
         {
@@ -106,9 +116,12 @@ public sealed class MainViewModel(
         try
         {
             var saved = await settingsStore.LoadAsync();
+            _settingsLoaded = true;
+            _touchscreenMode = saved.TouchscreenMode;
+            NotifyPropertyChanged(nameof(TouchscreenMode));
             _hasConfiguration = false;
             _gamePath = string.IsNullOrWhiteSpace(saved.GameExecutablePath) ? "尚未设置游戏路径" : saved.GameExecutablePath;
-            _arguments = string.IsNullOrWhiteSpace(saved.LaunchArguments) ? "未设置（使用游戏默认值）" : saved.LaunchArguments;
+            _arguments = GameLaunchArguments.Build(saved);
             if (string.IsNullOrWhiteSpace(saved.GameExecutablePath))
                 SetStatus("请先前往设置，选择游戏文件并保存。");
             else
@@ -158,5 +171,30 @@ public sealed class MainViewModel(
         }
     }
 
-    protected override void OnBusyChanged() => NotifyPropertyChanged(nameof(CanLaunch));
+    public async Task SetTouchscreenModeAsync(bool enabled)
+    {
+        if (!CanChangeTouchscreenMode || enabled == _touchscreenMode) return;
+        IsBusy = true;
+        try
+        {
+            // No executable validation: changing next-start options also works with an offline NAS.
+            var saved = await settingsStore.UpdateAsync(latest => latest with { TouchscreenMode = enabled });
+            _touchscreenMode = saved.TouchscreenMode;
+            _arguments = GameLaunchArguments.Build(saved);
+            NotifyPropertyChanged(nameof(Arguments));
+            SetStatus("已保存，下次启动游戏时" + (enabled ? "启用手机 UI。" : "使用普通界面。"));
+        }
+        catch (Exception ex) { ReportError("保存手机 UI 选项失败：" + ex.Message); }
+        finally
+        {
+            NotifyPropertyChanged(nameof(TouchscreenMode));
+            IsBusy = false;
+        }
+    }
+
+    protected override void OnBusyChanged()
+    {
+        NotifyPropertyChanged(nameof(CanLaunch));
+        NotifyPropertyChanged(nameof(CanChangeTouchscreenMode));
+    }
 }

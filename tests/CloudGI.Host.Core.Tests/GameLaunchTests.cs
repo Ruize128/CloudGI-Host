@@ -109,7 +109,36 @@ public sealed class GameLaunchTests : IDisposable
         var service = new GameLaunchService(store, new(), launcher);
         var result = await service.LaunchAsync();
         Assert.Equal(GameLaunchStatus.Started, result.Status);
-        Assert.Equal(new GameStartRequest(settings.GameExecutablePath, settings.LaunchArguments, _directory), launcher.LastRequest);
+        Assert.Equal(new GameStartRequest(settings.GameExecutablePath, settings.LaunchArguments + " -screen-fullscreen 1 -window-mode borderless", _directory, TouchscreenMode: true), launcher.LastRequest);
+    }
+
+    [Fact]
+    public async Task DisabledMobileUiIsPassedToOrdinaryLauncherWithoutOldPlatformFlags()
+    {
+        var settings = CreateGame("use_mobile_platform -is_cloud 1 -platform_type CLOUD_THIRD_PARTY_MOBILE")
+            with { TouchscreenMode = false };
+        var store = new JsonGameSettingsStore(Path.Combine(_directory, "settings.json"));
+        await store.SaveAsync(settings);
+        var launcher = new FakeLauncher();
+        await new GameLaunchService(store, new(), launcher).LaunchAsync();
+        Assert.False(launcher.LastRequest!.TouchscreenMode);
+        Assert.DoesNotContain("platform", launcher.LastRequest.Arguments);
+        Assert.DoesNotContain("is_cloud", launcher.LastRequest.Arguments);
+    }
+
+    [Fact]
+    public async Task AtomicOptionUpdatesPreserveOtherFieldsAndDoNotNeedAnAccessibleGame()
+    {
+        var store = new JsonGameSettingsStore(Path.Combine(_directory, "settings.json"));
+        var settings = new GameLaunchSettings { GameExecutablePath = "offline NAS", LaunchArguments = "-example keep" };
+        await store.SaveAsync(settings);
+        await Task.WhenAll(
+            store.UpdateAsync(latest => latest with { TouchscreenMode = false }),
+            store.UpdateAsync(latest => latest with { Fullscreen = false }));
+        var actual = await store.LoadAsync();
+        Assert.Equal(settings with { TouchscreenMode = false, Fullscreen = false }, actual);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.UpdateAsync(_ => throw new InvalidOperationException()));
+        Assert.Equal(actual, await store.LoadAsync());
     }
 
     [Fact]

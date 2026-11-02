@@ -1,0 +1,55 @@
+<Project>
+  <PropertyGroup>
+    <TouchscreenRoot>$(MSBuildThisFileDirectory)..\third-party\FufuLauncher.Touchscreen</TouchscreenRoot>
+  </PropertyGroup>
+  <!-- The x64 helper also runs under Windows ARM64 emulation; no native DLL is loaded in managed Host. -->
+  <ItemGroup>
+    <Content Include="$(TouchscreenRoot)\runtime\win-x64\CloudGI.MobileUI.exe;$(TouchscreenRoot)\runtime\win-x64\CloudGI.Touchscreen.dll">
+      <Link>MobileUI\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(TouchscreenRoot)\LICENSE;$(TouchscreenRoot)\NOTICE.md;$(TouchscreenRoot)\runtime\win-x64\SHA256SUMS">
+      <Link>MobileUI\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(TouchscreenRoot)\minhook\LICENSE.txt">
+      <Link>MobileUI\MinHook-LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <!-- Carry native corresponding source and build inputs with local publish artifacts. -->
+  <ItemGroup>
+    <Content Include="$(TouchscreenRoot)\src\**\*">
+      <Link>MobileUI\Source\src\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(TouchscreenRoot)\minhook\**\*">
+      <Link>MobileUI\Source\minhook\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(TouchscreenRoot)\licenses\*">
+      <Link>MobileUI\licenses\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(TouchscreenRoot)\tests\**\*">
+      <Link>MobileUI\Source\tests\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(TouchscreenRoot)\CMakeLists.txt;$(TouchscreenRoot)\build-native.py">
+      <Link>MobileUI\Source\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <Target Name="CheckTouchscreenPayload" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(TouchscreenRoot)\runtime\win-x64\CloudGI.MobileUI.exe') or !Exists('$(TouchscreenRoot)\runtime\win-x64\CloudGI.Touchscreen.dll')"
+           Text="Missing CloudGI touchscreen binaries. Rebuild third-party/FufuLauncher.Touchscreen as described in NOTICE.md." />
+  </Target>
+</Project>

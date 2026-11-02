@@ -2,9 +2,11 @@ using CloudGI.Host.Core.Configuration;
 
 namespace CloudGI.Host.Core.Games;
 
+public sealed class GameLaunchException(string message) : Exception(message);
+
 public enum GameLaunchStatus { Started, AlreadyRunning }
 public sealed record GameLaunchResult(GameLaunchStatus Status, int ProcessId);
-public sealed record GameStartRequest(string ExecutablePath, string Arguments, string WorkingDirectory);
+public sealed record GameStartRequest(string ExecutablePath, string Arguments, string WorkingDirectory, bool TouchscreenMode = false);
 
 public interface IGameProcessLauncher : IGameProcessReader
 {
@@ -62,8 +64,8 @@ public sealed class GameLaunchService(
                 if (processLauncher.FindRunningGame() is int currentId)
                     return new GameLaunchResult(GameLaunchStatus.AlreadyRunning, currentId);
 
-                var request = new GameStartRequest(settings.GameExecutablePath, settings.LaunchArguments,
-                    Path.GetDirectoryName(settings.GameExecutablePath)!);
+                var request = new GameStartRequest(settings.GameExecutablePath, GameLaunchArguments.Build(settings),
+                    Path.GetDirectoryName(settings.GameExecutablePath)!, settings.TouchscreenMode);
                 // Once Start succeeds, report the result even if the caller cancels meanwhile.
                 return new GameLaunchResult(GameLaunchStatus.Started, processLauncher.Start(request));
             }, CancellationToken.None).ConfigureAwait(false);

@@ -87,6 +87,7 @@ public sealed class SunshineConfiguration(string directory)
             pkey = {FilePath("credentials/cakey.pem")}
             cert = {FilePath("credentials/cacert.pem")}
             log_path = {FilePath("sunshine.log")}
+            native_pen_touch = enabled
             gamepad_driver = vigembus
             dd_configuration_option = disabled
             """ + Environment.NewLine;

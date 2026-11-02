@@ -19,6 +19,11 @@ public sealed partial class HomePage : Page
 
     private async void RestartStreaming_Click(object sender, RoutedEventArgs e) => await Streaming.RestartAsync();
 
+    private async void TouchscreenMode_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleSwitch toggle) await ViewModel.SetTouchscreenModeAsync(toggle.IsOn);
+    }
+
     private async void LaunchGame_Click(object sender, RoutedEventArgs e) => await ViewModel.LaunchAsync();
     private void OpenSettings_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke(this, EventArgs.Empty);
 }

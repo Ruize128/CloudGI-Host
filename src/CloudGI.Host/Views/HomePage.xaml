@@ -37,6 +37,13 @@
           <TextBlock Text="{x:Bind ViewModel.GamePath, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
           <TextBlock Text="启动参数" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBlock Text="{x:Bind ViewModel.Arguments, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+          <ToggleSwitch Header="以手机 UI 启动" OnContent="开启" OffContent="关闭"
+                        IsOn="{x:Bind ViewModel.TouchscreenMode, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.CanChangeTouchscreenMode, Mode=OneWay}"
+                        Toggled="TouchscreenMode_Toggled"
+                        AutomationProperties.AutomationId="MobileUiToggle" />
+          <TextBlock Text="自动保存，电脑和手机发起的下次启动均使用此选项；已运行的游戏需要退出后重新启动。"
+                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Content="{x:Bind ViewModel.LaunchButtonText, Mode=OneWay}" Click="LaunchGame_Click"
                     AutomationProperties.AutomationId="LaunchGameButton"

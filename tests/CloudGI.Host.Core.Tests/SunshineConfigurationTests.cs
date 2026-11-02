@@ -24,6 +24,7 @@ public sealed class SunshineConfigurationTests : IDisposable
         Assert.StartsWith("sunshine_name = CloudGI 中文主机", text);
         Assert.Contains("file_state = " + state, text);
         Assert.Contains("origin_web_ui_allowed = pc", text);
+        Assert.Contains("native_pen_touch = enabled", text);
         Assert.DoesNotContain("global_prep_cmd", text);
         Assert.DoesNotContain("resolution =", text);
         await config.WriteAsync(settings with { Name = "Renamed" });

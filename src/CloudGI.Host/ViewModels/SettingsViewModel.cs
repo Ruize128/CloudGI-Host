@@ -8,6 +8,8 @@ public sealed class SettingsViewModel(IGameSettingsStore settingsStore, GameLaun
 {
     private string _gamePath = "";
     private string _launchArguments = "";
+    private bool _fullscreen = true;
+    public bool Fullscreen { get => _fullscreen; set => SetProperty(ref _fullscreen, value); }
 
     public string GamePath
     {
@@ -29,6 +31,7 @@ public sealed class SettingsViewModel(IGameSettingsStore settingsStore, GameLaun
             var settings = await settingsStore.LoadAsync();
             GamePath = settings.GameExecutablePath;
             LaunchArguments = settings.LaunchArguments;
+            Fullscreen = settings.Fullscreen;
         }
         catch (Exception ex) { ReportError(ex.Message); }
         finally { IsBusy = false; }
@@ -43,12 +46,19 @@ public sealed class SettingsViewModel(IGameSettingsStore settingsStore, GameLaun
             var draft = new GameLaunchSettings
             {
                 GameExecutablePath = GamePath,
-                LaunchArguments = LaunchArguments
+                LaunchArguments = LaunchArguments,
+                Fullscreen = Fullscreen
             };
             var settings = await Task.Run(() => validator.Normalize(draft));
-            await settingsStore.SaveAsync(settings);
+            await settingsStore.UpdateAsync(latest => latest with
+            {
+                GameExecutablePath = settings.GameExecutablePath,
+                LaunchArguments = settings.LaunchArguments,
+                Fullscreen = settings.Fullscreen
+            });
             GamePath = settings.GameExecutablePath;
             LaunchArguments = settings.LaunchArguments;
+            Fullscreen = settings.Fullscreen;
             SetStatus("已保存。下次启动游戏时将使用这些设置。", InfoBarSeverity.Success);
         }
         catch (Exception ex) { ReportError("保存失败：" + ex.Message); }

@@ -37,4 +37,5 @@
     <Copy SourceFiles="@(_AppXbf)" DestinationFiles="@(_AppXbf->'$(PublishDir)Views\%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
   <Import Project="../../build/Sunshine.targets" />
+  <Import Project="../../build/Touchscreen.targets" />
 </Project>

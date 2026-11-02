@@ -19,12 +19,18 @@
             <Button Content="选择文件" Click="BrowseFile_Click" IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
             <Button Content="选择目录" Click="BrowseFolder_Click" IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
           </StackPanel>
+          <CheckBox Content="全屏启动" IsChecked="{x:Bind ViewModel.Fullscreen, Mode=TwoWay}"
+                    IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
+          <TextBlock Text="手机 UI 请在首页切换，修改将在下次启动游戏时生效。"
+                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <TextBox Header="自定义启动参数（可留空）"
                    Text="{x:Bind ViewModel.LaunchArguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                    AutomationProperties.AutomationId="LaunchArgumentsTextBox"
                    IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}"
                    TextWrapping="Wrap" MinHeight="72" MaxLength="8192"
-                   PlaceholderText="例如：-screen-width 1280 -screen-height 720 -screen-fullscreen 0" />
+                   PlaceholderText="例如：-screen-width 1280 -screen-height 720" />
+          <TextBlock Text="全屏由上方选项决定，手机 UI 由首页开关决定；旧版平台参数会被移除，其余参数保留。"
+                     TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Content="保存设置" Click="Save_Click"
                     AutomationProperties.AutomationId="SaveSettingsButton"

@@ -70,6 +70,7 @@ public sealed class WindowsGameProcessLauncher : IGameProcessLauncher, IGameProc
 
     public int Start(GameStartRequest request)
     {
+        if (request.TouchscreenMode) return WindowsTouchscreenLauncher.Start(request);
         using var process = Process.Start(new ProcessStartInfo
         {
             FileName = request.ExecutablePath,

@@ -75,6 +75,7 @@ public sealed class GameSessionService(IGameLaunchService launcher, IGameStatusS
             var message = ex switch
             {
                 GameConfigurationException => ex.Message,
+                GameLaunchException => ex.Message,
                 OperationCanceledException when lifetime.IsCancellationRequested => "Host 正在关闭。",
                 OperationCanceledException => "未能确认游戏进程，请查看电脑上的授权提示或游戏启动结果；不会自动重启游戏。",
                 Win32Exception { NativeErrorCode: 1223 } => "电脑端取消了启动授权，请重新点击启动游戏。",
